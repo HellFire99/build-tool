@@ -1,6 +1,8 @@
-package nl.politie.buildtool
+package nl.politie.buildtool.gui
 
+import nl.politie.buildtool.maven.BuildToolMavenInvoker
 import nl.politie.buildtool.model.PomFile
+import nl.politie.buildtool.utils.DirectoryCrawler
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.awt.Color
@@ -9,6 +11,7 @@ import java.awt.event.ActionEvent
 import javax.swing.*
 import javax.swing.GroupLayout.Alignment
 import javax.swing.LayoutStyle.ComponentPlacement
+import kotlin.concurrent.thread
 
 @Component
 class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
@@ -140,7 +143,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     }
 
     private fun pomCheckBoxes(pomsContentPanel: JPanel) {
-        pomFileList = directoryCrawler.getPomFileList("D:/Java/projects")
+        pomFileList = directoryCrawler.getPomFileList("..")
         pomFileList.forEach {
             logger.info("Pom file found: ${it.name} - ${it.file}")
             pomFileCheckBoxes.add(jCheckBox(it.name))
@@ -167,12 +170,12 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     }
 
     private fun executeBuild(it: ActionEvent?) {
-        pomFileCheckBoxes.forEach { checkbox ->
-            println("${checkbox.name} is ${checkbox.isSelected}")
-            if (checkbox.isSelected) {
-                val targets = targets(pomTargetList)
-                buildToolMavenInvoker.invoke(pomFileList.first { checkbox.name == it.name }, targets)
-            }
+        val pomFiles = pomFileCheckBoxes
+                .filter { it.isSelected }
+                .map { pomFileList.first { pomFile -> pomFile.name == it.name } }
+        val targets = targets(pomTargetList)
+        thread(start = true) {
+            buildToolMavenInvoker.invoke(pomFiles, targets)
         }
     }
 

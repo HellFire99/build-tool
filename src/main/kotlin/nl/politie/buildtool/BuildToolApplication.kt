@@ -1,5 +1,6 @@
 package nl.politie.buildtool
 
+import nl.politie.buildtool.gui.BuildToolGUI
 import org.springframework.boot.WebApplicationType
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.builder.SpringApplicationBuilder

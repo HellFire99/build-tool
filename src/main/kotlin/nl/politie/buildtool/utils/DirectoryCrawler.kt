@@ -1,4 +1,4 @@
-package nl.politie.buildtool
+package nl.politie.buildtool.utils
 
 
 import nl.politie.buildtool.model.PomFile

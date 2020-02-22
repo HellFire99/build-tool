@@ -1,5 +1,6 @@
 package nl.politie.buildtool
 
+import nl.politie.buildtool.utils.DirectoryCrawler
 import org.junit.Test
 
 class DirectoryCrawlerTest {
