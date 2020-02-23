@@ -1,11 +1,13 @@
 package nl.politie.buildtool.model
 
+import org.springframework.util.ResourceUtils
 import java.time.Duration
 import java.time.format.DateTimeFormatter
+import javax.swing.ImageIcon
 import javax.swing.table.AbstractTableModel
 
 
-class PomFileTableModel(val pomFileList: List<PomFile>) : AbstractTableModel() {
+class PomFileTableModel(private val pomFileList: List<PomFile>) : AbstractTableModel() {
     private val columnNames = arrayOf(
             Column.CHECKED,
             Column.NAME,
@@ -14,6 +16,18 @@ class PomFileTableModel(val pomFileList: List<PomFile>) : AbstractTableModel() {
             Column.FINISHED,
             Column.DURATION,
             Column.STATUS)
+
+    var statusMap: Map<BuildStatus, ImageIcon>
+
+    init {
+        statusMap = mapOf(
+                BuildStatus.QUEUED to createIcon("images/queued.png"),
+                BuildStatus.BUILDING to createIcon("images/building.png"),
+                BuildStatus.SUCCESS to createIcon("images/check.gif"),
+                BuildStatus.FAIL to createIcon("images/error.png"),
+                BuildStatus.NONE to createIcon("images/none.png")
+        )
+    }
 
     override fun getRowCount() = pomFileList.size
 
@@ -26,11 +40,19 @@ class PomFileTableModel(val pomFileList: List<PomFile>) : AbstractTableModel() {
             0 -> pomFileList[row].checked
             1 -> pomFileList[row].name
             2 -> pomFileList[row].version
-            3 -> pomFileList[row].start?.format(DateTimeFormatter.ISO_LOCAL_TIME) ?: ""
-            4 -> pomFileList[row].finished?.format(DateTimeFormatter.ISO_LOCAL_TIME) ?: ""
+            3 -> pomFileList[row].start?.format(DateTimeFormatter.ofPattern("HH:mm:ss")) ?: ""
+            4 -> pomFileList[row].finished?.format(DateTimeFormatter.ofPattern("HH:mm:ss")) ?: ""
             5 -> formatDuration(pomFileList[row].durationOfLastBuild)
-            6 -> pomFileList[row].status ?: ""
+            6 -> formatStatus(pomFileList[row].status)
             else -> ""
+        }
+    }
+
+    private fun formatStatus(status: BuildStatus?): ImageIcon {
+        return if (status == null) {
+            statusMap[BuildStatus.NONE] ?: error("BuildStatus not found in map.")
+        } else {
+            statusMap[status] ?: error("BuildStatus not found in map.")
         }
     }
 
@@ -38,7 +60,10 @@ class PomFileTableModel(val pomFileList: List<PomFile>) : AbstractTableModel() {
         if (durationOfLastBuild == null) {
             return ""
         }
-        return "${durationOfLastBuild.toMinutes()}:${durationOfLastBuild.toSeconds()}:${durationOfLastBuild.toMillis()}"
+        val min = durationOfLastBuild.toMinutes().toString().padStart(2, '0')
+        val sec = durationOfLastBuild.toSeconds().toString().padStart(2, '0')
+        val ms = durationOfLastBuild.toMillis().toString().padStart(2, '0')
+        return "${min}:${sec}:${ms}"
 
     }
 
@@ -59,5 +84,7 @@ class PomFileTableModel(val pomFileList: List<PomFile>) : AbstractTableModel() {
 
     override fun getColumnClass(col: Int) = getValueAt(0, col).javaClass
 
+    private fun createIcon(path: String) =
+            ImageIcon(ResourceUtils.getFile("classpath:${path}").readBytes())
 
 }
