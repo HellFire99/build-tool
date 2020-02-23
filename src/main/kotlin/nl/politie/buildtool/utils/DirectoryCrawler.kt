@@ -10,6 +10,8 @@ import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.xpath.XPathConstants
 import javax.xml.xpath.XPathFactory
 
+const val XPATH_ARTIFACT_ID = "/project/artifactId"
+const val XPATH_VERSION = "/project/version"
 
 @Component
 class DirectoryCrawler {
@@ -17,15 +19,24 @@ class DirectoryCrawler {
     fun getPomFileList(startDir: String): List<PomFile> {
         return File(startDir).walkTopDown()
                 .filter { it.name == "pom.xml" }
-                .map { PomFile(it, extractName(it)) }.toList()
+                .map {
+                    val pomXmlDoc = readXml(it)
+                    PomFile(extractValue(pomXmlDoc, XPATH_ARTIFACT_ID),
+                            extractValue(pomXmlDoc, XPATH_VERSION),
+                            it)
+                }.toList()
     }
 
-    private fun extractName(it: File): String {
-        val pomXmlDoc = readXml(it)
+    private fun extractValue(pomXmlDoc: Document, xpathString: String): String {
         val xpath = XPathFactory.newInstance().newXPath()
-        val expr = xpath.compile("/project/artifactId")
+        val expr = xpath.compile(xpathString)
         val nodes = expr.evaluate(pomXmlDoc, XPathConstants.NODESET) as NodeList
-        return nodes.item(0).textContent
+        return if (nodes.item(0) != null) {
+            nodes.item(0).textContent
+        } else {
+            ""
+        }
+
     }
 
     fun readXml(xmlFile: File): Document {

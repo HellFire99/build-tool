@@ -1,11 +1,15 @@
 package nl.politie.buildtool.gui
 
 import nl.politie.buildtool.maven.BuildToolMavenInvoker
+import nl.politie.buildtool.model.Column
 import nl.politie.buildtool.model.PomFile
+import nl.politie.buildtool.model.PomFileTableModel
 import nl.politie.buildtool.utils.DirectoryCrawler
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Dimension
 import java.awt.Font
 import java.awt.event.ActionEvent
 import javax.swing.*
@@ -13,11 +17,14 @@ import javax.swing.GroupLayout.Alignment
 import javax.swing.LayoutStyle.ComponentPlacement
 import kotlin.concurrent.thread
 
+
 @Component
 class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                    val buildToolMavenInvoker: BuildToolMavenInvoker) {
     private val logger = LoggerFactory.getLogger(BuildToolGUI::class.java)
     lateinit var frmBuildtoolui: JFrame
+    lateinit var tableModel: PomFileTableModel
+
     val pomTargetList = listOf(
             jCheckBox("clean", true),
             jCheckBox("compile", false),
@@ -60,9 +67,9 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         glPomPanel.setHorizontalGroup(
                 glPomPanel.createParallelGroup(Alignment.LEADING)
                         .addGroup(glPomPanel.createSequentialGroup()
-                                .addComponent(lbPoms, GroupLayout.PREFERRED_SIZE, 55, GroupLayout.PREFERRED_SIZE)
+                                .addComponent(lbPoms, GroupLayout.PREFERRED_SIZE, 570, GroupLayout.PREFERRED_SIZE)
                                 .addContainerGap(417, Short.MAX_VALUE.toInt()))
-                        .addComponent(pomsScrollPane, GroupLayout.DEFAULT_SIZE, 472, Short.MAX_VALUE.toInt())
+                        .addComponent(pomsScrollPane, GroupLayout.DEFAULT_SIZE, 570, Short.MAX_VALUE.toInt())
         )
         glPomPanel.setVerticalGroup(
                 glPomPanel.createParallelGroup(Alignment.TRAILING)
@@ -92,9 +99,9 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         glMavenOptionsPanel.setHorizontalGroup(
                 glMavenOptionsPanel.createParallelGroup(Alignment.LEADING)
                         .addGroup(glMavenOptionsPanel.createSequentialGroup()
-                                .addComponent(lblMavenTargets, GroupLayout.PREFERRED_SIZE, 116, GroupLayout.PREFERRED_SIZE)
+                                .addComponent(lblMavenTargets, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE)
                                 .addContainerGap())
-                        .addComponent(targetsScrollPane, GroupLayout.DEFAULT_SIZE, 207, Short.MAX_VALUE.toInt())
+                        .addComponent(targetsScrollPane, GroupLayout.DEFAULT_SIZE, 100, 100)
         )
         glMavenOptionsPanel.setVerticalGroup(
                 glMavenOptionsPanel.createParallelGroup(Alignment.LEADING)
@@ -115,7 +122,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     }
 
     private fun groupLayout(pomPanel: JPanel, mavenOptionsPanel: JPanel, panel: JPanel): GroupLayout {
-        val groupLayout = GroupLayout(frmBuildtoolui.getContentPane())
+        val groupLayout = GroupLayout(frmBuildtoolui.contentPane)
         groupLayout.setHorizontalGroup(
                 groupLayout.createParallelGroup(Alignment.LEADING)
                         .addGroup(groupLayout.createSequentialGroup()
@@ -144,11 +151,21 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
 
     private fun pomCheckBoxes(pomsContentPanel: JPanel) {
         pomFileList = directoryCrawler.getPomFileList("..")
-        pomFileList.forEach {
-            logger.info("Pom file found: ${it.name} - ${it.file}")
-            pomFileCheckBoxes.add(jCheckBox(it.name))
-        }
-        pomFileCheckBoxes.forEach { pomsContentPanel.add(it) }
+        tableModel = PomFileTableModel(pomFileList)
+        val table = JTable(tableModel)
+        val scrollPane = JScrollPane(table)
+        scrollPane.preferredSize = Dimension(380, 450)
+
+        table.columnModel.getColumn(0).preferredWidth = Column.CHECKED.width
+        table.columnModel.getColumn(1).preferredWidth = Column.NAME.width
+        table.columnModel.getColumn(2).preferredWidth = Column.VERSION.width
+        table.columnModel.getColumn(3).preferredWidth = Column.START.width
+        table.columnModel.getColumn(4).preferredWidth = Column.FINISHED.width
+        table.columnModel.getColumn(5).preferredWidth = Column.DURATION.width
+        table.columnModel.getColumn(6).preferredWidth = Column.STATUS.width
+
+        pomsContentPanel.add(scrollPane, BorderLayout.CENTER)
+
     }
 
     private fun pomTargetCheckBoxes(targetsContentPanel: JPanel) {
@@ -169,13 +186,21 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         panel.add(btnBuild)
     }
 
-    private fun executeBuild(it: ActionEvent?) {
-        val pomFiles = pomFileCheckBoxes
-                .filter { it.isSelected }
-                .map { pomFileList.first { pomFile -> pomFile.name == it.name } }
+    private fun executeBuild(actionEvent: ActionEvent?) {
+        val pomFiles = pomFileList
+                .filter { it.checked }
+        if (pomFiles.isEmpty()) {
+            logger.info("Nothing to build. ")
+            return
+        }
         val targets = targets(pomTargetList)
+        if (targets.isEmpty()) {
+            logger.info("No targets selected. ")
+            return
+        }
+
         thread(start = true) {
-            buildToolMavenInvoker.invoke(pomFiles, targets)
+            buildToolMavenInvoker.invoke(pomFiles, targets, tableModel)
         }
     }
 
