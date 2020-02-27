@@ -1,6 +1,6 @@
 package nl.politie.buildtool.model
 
-import org.springframework.util.ResourceUtils
+import nl.politie.buildtool.utils.createIcon
 import java.time.Duration
 import java.time.format.DateTimeFormatter
 import javax.swing.ImageIcon
@@ -83,8 +83,5 @@ class PomFileTableModel(private val pomFileList: List<PomFile>) : AbstractTableM
 
 
     override fun getColumnClass(col: Int) = getValueAt(0, col).javaClass
-
-    private fun createIcon(path: String) =
-            ImageIcon(ResourceUtils.getFile("classpath:${path}").readBytes())
 
 }
