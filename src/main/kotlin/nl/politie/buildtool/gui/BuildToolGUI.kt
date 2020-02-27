@@ -31,6 +31,8 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     lateinit var frmBuildtoolui: JFrame
     lateinit var tableModel: PomFileTableModel
     private var table: JTable? = null
+    private var lbStatus = JLabel("Pom's")
+
     private var pomFileList = listOf<PomFile>()
     private var pomFileCheckBoxes = mutableListOf<JCheckBox>()
     private val pomTargetList: List<JCheckBox> = mutableListOf()
@@ -69,6 +71,12 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     }
 
     private fun executeBuild(actionEvent: ActionEvent?) {
+        pomFileList.forEach {
+            it.start = null
+            it.finished = null
+        }
+        tableModel.fireTableDataChanged()
+
         val pomFiles = pomFileList
                 .filter { it.checked }
         if (pomFiles.isEmpty()) {
@@ -105,15 +113,15 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     @Throws(IOException::class)
     fun initialize() {
         frmBuildtoolui = JFrame()
-        frmBuildtoolui!!.foreground = Color.LIGHT_GRAY
-        frmBuildtoolui!!.title = "Rob's BuildTool"
-        frmBuildtoolui!!.setBounds(100, 100, 935, 631)
-        frmBuildtoolui!!.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
+        frmBuildtoolui.foreground = Color.LIGHT_GRAY
+        frmBuildtoolui.title = "Rob's BuildTool"
+        frmBuildtoolui.setBounds(100, 100, 935, 631)
+        frmBuildtoolui.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
         val buttonPanel = JPanel()
-        val fl_buttonPanel = buttonPanel.layout as FlowLayout
-        fl_buttonPanel.hgap = 0
-        fl_buttonPanel.alignment = FlowLayout.LEFT
-        fl_buttonPanel.alignOnBaseline = true
+        val flButtonPanel = buttonPanel.layout as FlowLayout
+        flButtonPanel.hgap = 0
+        flButtonPanel.alignment = FlowLayout.LEFT
+        flButtonPanel.alignOnBaseline = true
         val optionsPanel = JPanel()
         optionsPanel.border = EtchedBorder(EtchedBorder.LOWERED, null, null)
         val statusPanel = JPanel()
@@ -242,26 +250,28 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                                 .addGap(17)
                                 .addComponent(statusPanel, GroupLayout.PREFERRED_SIZE, 22, GroupLayout.PREFERRED_SIZE))
         )
+
         val chckbxGitPull = JCheckBox("Git Pull")
         chckbxGitPull.toolTipText = "Perform a Git Pull on every git directory"
         val chckbxStopOnError = JCheckBox("Stop on error")
         chckbxStopOnError.toolTipText = "Stop building when a build fails"
         val chckbxOrderedBuild = JCheckBox("Ordered build")
         chckbxOrderedBuild.toolTipText = "Build projects in order or not"
-        val gl_optionsPanel = GroupLayout(optionsPanel)
-        gl_optionsPanel.setHorizontalGroup(
-                gl_optionsPanel.createParallelGroup(Alignment.LEADING)
-                        .addGroup(gl_optionsPanel.createSequentialGroup()
+
+        val glStatusPanel = GroupLayout(optionsPanel)
+        glStatusPanel.setHorizontalGroup(
+                glStatusPanel.createParallelGroup(Alignment.LEADING)
+                        .addGroup(glStatusPanel.createSequentialGroup()
                                 .addContainerGap()
-                                .addGroup(gl_optionsPanel.createParallelGroup(Alignment.LEADING)
+                                .addGroup(glStatusPanel.createParallelGroup(Alignment.LEADING)
                                         .addComponent(chckbxStopOnError, GroupLayout.PREFERRED_SIZE, 102, GroupLayout.PREFERRED_SIZE)
                                         .addComponent(chckbxGitPull, GroupLayout.PREFERRED_SIZE, 72, GroupLayout.PREFERRED_SIZE)
                                         .addComponent(chckbxOrderedBuild))
                                 .addContainerGap(104, Short.MAX_VALUE.toInt()))
         )
-        gl_optionsPanel.setVerticalGroup(
-                gl_optionsPanel.createParallelGroup(Alignment.LEADING)
-                        .addGroup(gl_optionsPanel.createSequentialGroup()
+        glStatusPanel.setVerticalGroup(
+                glStatusPanel.createParallelGroup(Alignment.LEADING)
+                        .addGroup(glStatusPanel.createSequentialGroup()
                                 .addComponent(chckbxGitPull)
                                 .addPreferredGap(ComponentPlacement.RELATED)
                                 .addComponent(chckbxStopOnError)
@@ -269,20 +279,39 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                                 .addComponent(chckbxOrderedBuild)
                                 .addContainerGap())
         )
-        optionsPanel.layout = gl_optionsPanel
-        val lbStatus = JLabel("Pom's")
+        optionsPanel.layout = glStatusPanel
         lbStatus.font = Font("Arial", Font.PLAIN, 11)
         statusPanel.add(lbStatus)
+
+        buildButtons(buttonPanel)
+
+        frmBuildtoolui.contentPane.layout = groupLayout
+    }
+
+    private fun buildButtons(buttonPanel: JPanel) {
+        // Build button
         val btnBuild = JButton("Build")
-        btnBuild.addActionListener { println("Build Build Build") }
         btnBuild.font = Font("Arial", Font.PLAIN, 14)
-        buttonPanel.add(btnBuild)
-        val horizontalStrut = Box.createHorizontalStrut(10)
-        buttonPanel.add(horizontalStrut)
+
         val btnCancel = JButton("Cancel")
         btnCancel.isEnabled = false
         btnCancel.font = Font("Arial", Font.PLAIN, 14)
+
+        buttonPanel.add(btnBuild)
+        val horizontalStrut = Box.createHorizontalStrut(10)
+        buttonPanel.add(horizontalStrut)
         buttonPanel.add(btnCancel)
-        frmBuildtoolui!!.contentPane.layout = groupLayout
+
+        btnBuild.addActionListener {
+            println("Build Build Build")
+            btnCancel.isEnabled = true
+            btnBuild.isEnabled = false
+        }
+
+        btnCancel.addActionListener {
+            println("CANCEL!")
+            btnCancel.isEnabled = false
+            btnBuild.isEnabled = true
+        }
     }
 }
