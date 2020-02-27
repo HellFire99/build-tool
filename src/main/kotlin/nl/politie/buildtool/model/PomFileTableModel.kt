@@ -22,7 +22,7 @@ class PomFileTableModel(private val pomFileList: List<PomFile>) : AbstractTableM
     init {
         statusMap = mapOf(
                 BuildStatus.QUEUED to createIcon("images/queued.png"),
-                BuildStatus.BUILDING to createIcon("images/building.png"),
+                BuildStatus.BUILDING to createIcon("images/building.gif"),
                 BuildStatus.SUCCESS to createIcon("images/check.gif"),
                 BuildStatus.FAIL to createIcon("images/error.png"),
                 BuildStatus.NONE to createIcon("images/none.png")
