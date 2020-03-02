@@ -1,7 +1,9 @@
 package nl.politie.buildtool.utils
 
 
+import nl.politie.buildtool.maven.BuildToolMavenInvoker
 import nl.politie.buildtool.model.PomFile
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.util.ResourceUtils
 import org.w3c.dom.Document
@@ -20,9 +22,12 @@ fun createIcon(path: String) =
 
 @Component
 class DirectoryCrawler {
+    private val logger = LoggerFactory.getLogger(BuildToolMavenInvoker::class.java)
+    private val documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder()
 
     fun getPomFileList(startDir: String): List<PomFile> {
         return File(startDir).walkTopDown()
+                .maxDepth(3)
                 .filter { it.name == "pom.xml" }
                 .map {
                     val pomXmlDoc = readXml(it)
@@ -30,6 +35,7 @@ class DirectoryCrawler {
                             extractValue(pomXmlDoc, XPATH_VERSION),
                             it)
                 }.toList()
+                .sortedBy { it.name }
     }
 
     private fun extractValue(pomXmlDoc: Document, xpathString: String): String {
@@ -41,11 +47,10 @@ class DirectoryCrawler {
         } else {
             ""
         }
-
     }
 
     fun readXml(xmlFile: File): Document {
-        val xmlDoc: Document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlFile)
+        val xmlDoc: Document = documentBuilder.parse(xmlFile)
         xmlDoc.documentElement.normalize()
         return xmlDoc
     }

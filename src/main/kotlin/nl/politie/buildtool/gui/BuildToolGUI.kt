@@ -1,49 +1,63 @@
 package nl.politie.buildtool.gui
 
-import nl.politie.buildtool.maven.BuildToolMavenInvoker
+import com.google.common.eventbus.Subscribe
+import nl.politie.buildtool.maven.BuildExecutor
+import nl.politie.buildtool.model.BuildingCompleteEvent
 import nl.politie.buildtool.model.Column
 import nl.politie.buildtool.model.PomFile
 import nl.politie.buildtool.model.PomFileTableModel
-import nl.politie.buildtool.model.SelectedProjectsListModel
 import nl.politie.buildtool.utils.DirectoryCrawler
+import nl.politie.buildtool.utils.GlobalEventBus
 import nl.politie.buildtool.utils.createIcon
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.InitializingBean
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.awt.Color
 import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.Insets
-import java.awt.event.ActionEvent
 import java.io.IOException
 import javax.swing.*
 import javax.swing.GroupLayout.Alignment
 import javax.swing.LayoutStyle.ComponentPlacement
 import javax.swing.border.BevelBorder
 import javax.swing.border.EtchedBorder
-import kotlin.concurrent.thread
 
 
 @Component
 class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
-                   val buildToolMavenInvoker: BuildToolMavenInvoker) {
-
+                   val buildExecutor: BuildExecutor,
+                   val globalEventBus: GlobalEventBus) : InitializingBean {
     private val logger = LoggerFactory.getLogger(BuildToolGUI::class.java)
+
+    @Value("\${root:.}")
+    private lateinit var root: String
+
     lateinit var frmBuildtoolui: JFrame
     lateinit var tableModel: PomFileTableModel
     private var table: JTable? = null
+    private val btnBuild = JButton("Build")
+    private val btnCancel = JButton("Cancel")
     private var lbStatus = JLabel("Pom's")
-
     private var pomFileList = listOf<PomFile>()
-    private var pomFileCheckBoxes = mutableListOf<JCheckBox>()
-    private val pomTargetList: List<JCheckBox> = mutableListOf()
+    private val pomTargetList = mutableListOf<JCheckBox>()
+    private val selectedPomNamesListModel = DefaultListModel<String>()
 
-    init {
-        initTable()
+    companion object {
+        private const val TITLE = "Rob's BuildTool"
+        private const val LBL_SELECTED = "Selected"
+        private const val LBL_POM_FILES = "Pom files"
+        private const val LBL_MAVEN_PROJECTS = "Maven projects"
+        private const val TXT_CLEAN = "clean"
+        private const val TXT_COMPILE = "compile"
+        private const val TXT_INSTALL = "install"
+        private const val TXT_TEST = "test"
     }
 
     private fun initTable() {
-        pomFileList = directoryCrawler.getPomFileList("..")
-        tableModel = PomFileTableModel(pomFileList)
+        refreshPomFileList()
+        tableModel = PomFileTableModel(pomFileList, selectedPomNamesListModel)
         val myTable = JTable(tableModel)
         myTable.columnModel.getColumn(0).preferredWidth = Column.CHECKED.width
         myTable.columnModel.getColumn(1).preferredWidth = Column.NAME.width
@@ -56,53 +70,16 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         table = myTable
     }
 
-    private fun jCheckBox(text: String, checked: Boolean = false): JCheckBox {
-        val chckbxClean = JCheckBox(text)
-        chckbxClean.name = text
-        chckbxClean.isSelected = checked
-        return chckbxClean
-    }
-
-    private fun buildButton(panel: JPanel) {
-        val btnBuild = JButton("Build")
-        btnBuild.addActionListener { executeBuild(it) }
-        btnBuild.font = Font("Arial", Font.PLAIN, 14)
-        panel.add(btnBuild)
-    }
-
-    private fun executeBuild(actionEvent: ActionEvent?) {
-        pomFileList.forEach {
-            it.start = null
-            it.finished = null
-        }
-        tableModel.fireTableDataChanged()
-
-        val pomFiles = pomFileList
-                .filter { it.checked }
-        if (pomFiles.isEmpty()) {
-            logger.info("Nothing to build. ")
-            return
-        }
-        val targets = targets(pomTargetList)
-        if (targets.isEmpty()) {
-            logger.info("No targets selected. ")
-            return
-        }
-
-        thread(start = true) {
-            buildToolMavenInvoker.invoke(pomFiles, targets, tableModel)
-        }
-    }
-
-    private fun targets(pomTargetList: List<JCheckBox>): List<String> {
-        return pomTargetList.filter { it.isSelected }
-                .map { it.name }
-                .toList()
+    private fun jcheckBoxAndAdd(text: String, checked: Boolean = false): JCheckBox {
+        val checkbox = JCheckBox(text)
+        checkbox.name = text
+        checkbox.isSelected = checked
+        pomTargetList.add(checkbox)
+        return checkbox
     }
 
     fun setVisible(visible: Boolean) {
         frmBuildtoolui.isVisible = true
-
     }
 
     /**
@@ -114,14 +91,16 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     fun initialize() {
         frmBuildtoolui = JFrame()
         frmBuildtoolui.foreground = Color.LIGHT_GRAY
-        frmBuildtoolui.title = "Rob's BuildTool"
+        frmBuildtoolui.title = TITLE
         frmBuildtoolui.setBounds(100, 100, 935, 631)
         frmBuildtoolui.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
+
         val buttonPanel = JPanel()
         val flButtonPanel = buttonPanel.layout as FlowLayout
         flButtonPanel.hgap = 0
         flButtonPanel.alignment = FlowLayout.LEFT
         flButtonPanel.alignOnBaseline = true
+
         val optionsPanel = JPanel()
         optionsPanel.border = EtchedBorder(EtchedBorder.LOWERED, null, null)
         val statusPanel = JPanel()
@@ -131,13 +110,13 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         flowLayout.hgap = 0
         flowLayout.alignment = FlowLayout.LEFT
         statusPanel.border = BevelBorder(BevelBorder.LOWERED, null, null, null, null)
-        val lblSelected = JLabel("Selected")
+        val lblSelected = JLabel(LBL_SELECTED)
         lblSelected.font = Font("Arial", Font.PLAIN, 16)
         val optionsPanel_1 = JPanel()
         optionsPanel_1.border = EtchedBorder(EtchedBorder.LOWERED, null, null)
-        val list: JList<*> = JList<Any?>()
+
+        val list = JList(selectedPomNamesListModel)
         list.background = UIManager.getColor("Label.background")
-        list.model = SelectedProjectsListModel(listOf())
 
         val gl_optionsPanel_1 = GroupLayout(optionsPanel_1)
         gl_optionsPanel_1.setHorizontalGroup(
@@ -153,12 +132,12 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         optionsPanel_1.layout = gl_optionsPanel_1
         val panel = JPanel()
         panel.border = EtchedBorder(EtchedBorder.LOWERED, null, null)
-        val chckbxClean = JCheckBox("clean")
-        chckbxClean.isSelected = true
-        val chckbxInstall_1 = JCheckBox("install")
-        chckbxInstall_1.isSelected = true
-        val chckbxCompile = JCheckBox("compile")
-        val chckbxTest = JCheckBox("test")
+
+        val chckbxClean = jcheckBoxAndAdd(TXT_CLEAN, true)
+        val chckbxInstall = jcheckBoxAndAdd(TXT_INSTALL, true)
+        val chckbxCompile = jcheckBoxAndAdd(TXT_COMPILE, false)
+        val chckbxTest = jcheckBoxAndAdd(TXT_TEST, false)
+
         val gl_panel = GroupLayout(panel)
         gl_panel.setHorizontalGroup(
                 gl_panel.createParallelGroup(Alignment.LEADING)
@@ -170,7 +149,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                                                 .addGap(53)
                                                 .addComponent(chckbxTest, GroupLayout.DEFAULT_SIZE, 96, Short.MAX_VALUE.toInt()))
                                         .addComponent(chckbxCompile)
-                                        .addComponent(chckbxInstall_1))
+                                        .addComponent(chckbxInstall))
                                 .addContainerGap())
         )
         gl_panel.setVerticalGroup(
@@ -182,23 +161,18 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                                 .addPreferredGap(ComponentPlacement.RELATED)
                                 .addComponent(chckbxCompile)
                                 .addPreferredGap(ComponentPlacement.RELATED)
-                                .addComponent(chckbxInstall_1)
+                                .addComponent(chckbxInstall)
                                 .addContainerGap(11, Short.MAX_VALUE.toInt()))
         )
         panel.layout = gl_panel
         val scrollPoms = JScrollPane()
-        scrollPoms.toolTipText = "Pom files"
+        scrollPoms.toolTipText = LBL_POM_FILES
 
         scrollPoms.setViewportView(table)
-        val btnRefresh = JButton("")
 
-        btnRefresh.icon = createIcon("images/icon_refresh.png")
-        btnRefresh.iconTextGap = 0
-        btnRefresh.margin = Insets(0, 0, 0, 0)
-        btnRefresh.isBorderPainted = true
-        btnRefresh.isFocusPainted = false
-        btnRefresh.isContentAreaFilled = false
-        val lblMavenProjects = JLabel("Maven projects")
+        val btnRefresh = refreshButton()
+
+        val lblMavenProjects = JLabel(LBL_MAVEN_PROJECTS)
         lblMavenProjects.font = Font("Arial", Font.PLAIN, 16)
         val groupLayout = GroupLayout(frmBuildtoolui!!.contentPane)
         groupLayout.setHorizontalGroup(
@@ -288,12 +262,30 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         frmBuildtoolui.contentPane.layout = groupLayout
     }
 
+    private fun refreshButton(): JButton {
+        val btnRefresh = JButton("")
+        btnRefresh.icon = createIcon("images/icon_refresh.png")
+        btnRefresh.iconTextGap = 0
+        btnRefresh.margin = Insets(0, 0, 0, 0)
+        btnRefresh.isBorderPainted = true
+        btnRefresh.isFocusPainted = false
+        btnRefresh.isContentAreaFilled = false
+        btnRefresh.addActionListener {
+            lbStatus.text = "Refreshing pom list..."
+            refreshPomFileList()
+            tableModel.fireTableDataChanged()
+            lbStatus.text = "Pom list refreshed. "
+        }
+        return btnRefresh
+    }
+
+    private fun refreshPomFileList() {
+        pomFileList = directoryCrawler.getPomFileList(root)
+    }
+
     private fun buildButtons(buttonPanel: JPanel) {
         // Build button
-        val btnBuild = JButton("Build")
         btnBuild.font = Font("Arial", Font.PLAIN, 14)
-
-        val btnCancel = JButton("Cancel")
         btnCancel.isEnabled = false
         btnCancel.font = Font("Arial", Font.PLAIN, 14)
 
@@ -303,15 +295,49 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         buttonPanel.add(btnCancel)
 
         btnBuild.addActionListener {
-            println("Build Build Build")
+            println(" ==================== Build Build Build ==================== ")
+            val selectedPomFileList = selectedPomFileList(selectedPomNamesListModel, pomFileList)
+            buildExecutor.executeBuild(selectedPomFileList, pomTargetList, tableModel)
             btnCancel.isEnabled = true
             btnBuild.isEnabled = false
         }
 
         btnCancel.addActionListener {
-            println("CANCEL!")
+            println(" ==================== CANCEL ==================== ")
+            buildExecutor.cancelBuild()
             btnCancel.isEnabled = false
             btnBuild.isEnabled = true
         }
+    }
+
+    private fun selectedPomFileList(selectedPomNamesListModel: DefaultListModel<String>, pomFileList: List<PomFile>): List<PomFile> {
+        val returnList = mutableListOf<PomFile>()
+        if (!selectedPomNamesListModel.isEmpty) {
+            for (i in 0 until selectedPomNamesListModel.size()) {
+                returnList.add(pomFileList.first { it.name == selectedPomNamesListModel.elementAt(i) })
+            }
+        }
+        return returnList
+    }
+
+    @Subscribe
+    fun updateStatusBar(event: String) {
+        lbStatus.text = event
+    }
+
+    @Subscribe
+    fun updateStatusComplete(event: BuildingCompleteEvent) {
+        lbStatus.text = "Building complete. "
+        if (btnCancel.isEnabled) {
+            btnCancel.isEnabled = false
+        }
+        if (!btnBuild.isEnabled) {
+            btnBuild.isEnabled = true
+        }
+    }
+
+    override fun afterPropertiesSet() {
+        initTable()
+        globalEventBus.eventBus.register(this)
     }
 }

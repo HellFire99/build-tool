@@ -11,4 +11,11 @@ class PomFile(val name: String,
               var start: LocalDateTime? = null,
               var finished: LocalDateTime? = null,
               var durationOfLastBuild: Duration? = null,
-              var status: BuildStatus? = null)
+              var status: BuildStatus? = null) {
+    fun reset() {
+        start = null
+        finished = null
+        durationOfLastBuild = null
+        status = null
+    }
+}

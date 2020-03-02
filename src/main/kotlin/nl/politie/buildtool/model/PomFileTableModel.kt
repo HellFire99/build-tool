@@ -3,11 +3,12 @@ package nl.politie.buildtool.model
 import nl.politie.buildtool.utils.createIcon
 import java.time.Duration
 import java.time.format.DateTimeFormatter
+import javax.swing.DefaultListModel
 import javax.swing.ImageIcon
 import javax.swing.table.AbstractTableModel
 
 
-class PomFileTableModel(private val pomFileList: List<PomFile>) : AbstractTableModel() {
+class PomFileTableModel(private val pomFileList: List<PomFile>, private val selectedPomList: DefaultListModel<String>) : AbstractTableModel() {
     private val columnNames = arrayOf(
             Column.CHECKED,
             Column.NAME,
@@ -74,6 +75,11 @@ class PomFileTableModel(private val pomFileList: List<PomFile>) : AbstractTableM
     override fun setValueAt(value: Any?, row: Int, col: Int) {
         if (col == 0 && value is Boolean) {
             pomFileList[row].checked = value
+            if (pomFileList[row].checked) {
+                selectedPomList.addElement(pomFileList[row].name)
+            } else {
+                selectedPomList.removeElement(pomFileList[row].name)
+            }
         }
         fireTableCellUpdated(row, col)
     }
