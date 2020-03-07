@@ -26,6 +26,7 @@ class DirectoryCrawler {
     private val documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder()
 
     fun getPomFileList(startDir: String): List<PomFile> {
+        logger.info("Searching pom files in $startDir")
         return File(startDir).walkTopDown()
                 .maxDepth(3)
                 .filter { it.name == "pom.xml" }

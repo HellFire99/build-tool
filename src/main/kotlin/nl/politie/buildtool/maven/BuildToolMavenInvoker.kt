@@ -38,7 +38,7 @@ class BuildToolMavenInvoker(val globalEventBus: GlobalEventBus) {
             invokePom(it, targets, invoker, tableModel)
         }
 
-        globalEventBus.eventBus.post(BuildingCompleteEvent())
+        globalEventBus.eventBus.post(BuildingCompleteEvent("Building complete. "))
     }
 
     private fun invokePom(it: PomFile, targets: List<String>, invoker: DefaultInvoker, tableModel: PomFileTableModel) {

@@ -1,15 +1,18 @@
 package nl.politie.buildtool.maven
 
 import nl.politie.buildtool.gui.BuildToolGUI
+import nl.politie.buildtool.model.BuildingCompleteEvent
 import nl.politie.buildtool.model.PomFile
 import nl.politie.buildtool.model.PomFileTableModel
+import nl.politie.buildtool.utils.GlobalEventBus
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import javax.swing.JCheckBox
 import kotlin.concurrent.thread
 
 @Component
-class BuildExecutor(val buildToolMavenInvoker: BuildToolMavenInvoker) {
+class BuildExecutor(val buildToolMavenInvoker: BuildToolMavenInvoker,
+                    val globalEventBus: GlobalEventBus) {
     private val logger = LoggerFactory.getLogger(BuildToolGUI::class.java)
 
     fun executeBuild(pomFileList: List<PomFile>,
@@ -22,11 +25,13 @@ class BuildExecutor(val buildToolMavenInvoker: BuildToolMavenInvoker) {
                 .filter { it.checked }
         if (pomFiles.isEmpty()) {
             logger.info("Nothing to build. ")
+            globalEventBus.eventBus.post(BuildingCompleteEvent("Nothing to build.  "))
             return
         }
         val targets = targets(pomTargetList)
         if (targets.isEmpty()) {
             logger.info("No targets selected. ")
+            globalEventBus.eventBus.post(BuildingCompleteEvent("No targets selected. "))
             return
         }
 

@@ -1,3 +1,3 @@
 package nl.politie.buildtool.model
 
-class BuildingCompleteEvent
+class BuildingCompleteEvent(val statusText: String)

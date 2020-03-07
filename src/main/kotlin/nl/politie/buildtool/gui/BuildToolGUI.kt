@@ -2,10 +2,7 @@ package nl.politie.buildtool.gui
 
 import com.google.common.eventbus.Subscribe
 import nl.politie.buildtool.maven.BuildExecutor
-import nl.politie.buildtool.model.BuildingCompleteEvent
-import nl.politie.buildtool.model.Column
-import nl.politie.buildtool.model.PomFile
-import nl.politie.buildtool.model.PomFileTableModel
+import nl.politie.buildtool.model.*
 import nl.politie.buildtool.utils.DirectoryCrawler
 import nl.politie.buildtool.utils.GlobalEventBus
 import nl.politie.buildtool.utils.createIcon
@@ -33,9 +30,9 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
 
     @Value("\${root:.}")
     private lateinit var root: String
-
-    lateinit var frmBuildtoolui: JFrame
-    lateinit var tableModel: PomFileTableModel
+    private lateinit var frmBuildtoolui: JFrame
+    private lateinit var tableModel: PomFileTableModel
+    private var checkboxMap = mutableMapOf<String, JCheckBox>()
     private var table: JTable? = null
     private val btnBuild = JButton("Build")
     private val btnCancel = JButton("Cancel")
@@ -43,17 +40,6 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     private var pomFileList = listOf<PomFile>()
     private val pomTargetList = mutableListOf<JCheckBox>()
     private val selectedPomNamesListModel = DefaultListModel<String>()
-
-    companion object {
-        private const val TITLE = "Rob's BuildTool"
-        private const val LBL_SELECTED = "Selected"
-        private const val LBL_POM_FILES = "Pom files"
-        private const val LBL_MAVEN_PROJECTS = "Maven projects"
-        private const val TXT_CLEAN = "clean"
-        private const val TXT_COMPILE = "compile"
-        private const val TXT_INSTALL = "install"
-        private const val TXT_TEST = "test"
-    }
 
     private fun initTable() {
         refreshPomFileList()
@@ -70,10 +56,17 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         table = myTable
     }
 
-    private fun jcheckBoxAndAdd(text: String, checked: Boolean = false): JCheckBox {
+    private fun jcheckBoxAndAdd(text: String, tooltip: String, checked: Boolean = false): JCheckBox {
+        val checkbox = jcheckBox(text, tooltip, checked)
+        pomTargetList.add(checkbox)
+        return checkbox
+    }
+
+    private fun jcheckBox(text: String, tooltip: String, checked: Boolean = false): JCheckBox {
         val checkbox = JCheckBox(text)
         checkbox.name = text
         checkbox.isSelected = checked
+        checkbox.toolTipText = tooltip
         pomTargetList.add(checkbox)
         return checkbox
     }
@@ -133,10 +126,6 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         val panel = JPanel()
         panel.border = EtchedBorder(EtchedBorder.LOWERED, null, null)
 
-        val chckbxClean = jcheckBoxAndAdd(TXT_CLEAN, true)
-        val chckbxInstall = jcheckBoxAndAdd(TXT_INSTALL, true)
-        val chckbxCompile = jcheckBoxAndAdd(TXT_COMPILE, false)
-        val chckbxTest = jcheckBoxAndAdd(TXT_TEST, false)
 
         val gl_panel = GroupLayout(panel)
         gl_panel.setHorizontalGroup(
@@ -145,29 +134,28 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                                 .addContainerGap()
                                 .addGroup(gl_panel.createParallelGroup(Alignment.LEADING)
                                         .addGroup(gl_panel.createSequentialGroup()
-                                                .addComponent(chckbxClean)
+                                                .addComponent(checkboxMap[TXT_CLEAN])
                                                 .addGap(53)
-                                                .addComponent(chckbxTest, GroupLayout.DEFAULT_SIZE, 96, Short.MAX_VALUE.toInt()))
-                                        .addComponent(chckbxCompile)
-                                        .addComponent(chckbxInstall))
+                                                .addComponent(checkboxMap[TXT_TEST], GroupLayout.DEFAULT_SIZE, 96, Short.MAX_VALUE.toInt()))
+                                        .addComponent(checkboxMap[TXT_COMPILE])
+                                        .addComponent(checkboxMap[TXT_INSTALL]))
                                 .addContainerGap())
         )
         gl_panel.setVerticalGroup(
                 gl_panel.createParallelGroup(Alignment.LEADING)
                         .addGroup(gl_panel.createSequentialGroup()
                                 .addGroup(gl_panel.createParallelGroup(Alignment.BASELINE)
-                                        .addComponent(chckbxClean)
-                                        .addComponent(chckbxTest))
+                                        .addComponent(checkboxMap[TXT_CLEAN])
+                                        .addComponent(checkboxMap[TXT_TEST]))
                                 .addPreferredGap(ComponentPlacement.RELATED)
-                                .addComponent(chckbxCompile)
+                                .addComponent(checkboxMap[TXT_COMPILE])
                                 .addPreferredGap(ComponentPlacement.RELATED)
-                                .addComponent(chckbxInstall)
+                                .addComponent(checkboxMap[TXT_INSTALL])
                                 .addContainerGap(11, Short.MAX_VALUE.toInt()))
         )
         panel.layout = gl_panel
         val scrollPoms = JScrollPane()
         scrollPoms.toolTipText = LBL_POM_FILES
-
         scrollPoms.setViewportView(table)
 
         val btnRefresh = refreshButton()
@@ -225,12 +213,6 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                                 .addComponent(statusPanel, GroupLayout.PREFERRED_SIZE, 22, GroupLayout.PREFERRED_SIZE))
         )
 
-        val chckbxGitPull = JCheckBox("Git Pull")
-        chckbxGitPull.toolTipText = "Perform a Git Pull on every git directory"
-        val chckbxStopOnError = JCheckBox("Stop on error")
-        chckbxStopOnError.toolTipText = "Stop building when a build fails"
-        val chckbxOrderedBuild = JCheckBox("Ordered build")
-        chckbxOrderedBuild.toolTipText = "Build projects in order or not"
 
         val glStatusPanel = GroupLayout(optionsPanel)
         glStatusPanel.setHorizontalGroup(
@@ -238,19 +220,19 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                         .addGroup(glStatusPanel.createSequentialGroup()
                                 .addContainerGap()
                                 .addGroup(glStatusPanel.createParallelGroup(Alignment.LEADING)
-                                        .addComponent(chckbxStopOnError, GroupLayout.PREFERRED_SIZE, 102, GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(chckbxGitPull, GroupLayout.PREFERRED_SIZE, 72, GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(chckbxOrderedBuild))
+                                        .addComponent(checkboxMap[TXT_STOP_ON_ERROR], GroupLayout.PREFERRED_SIZE, 102, GroupLayout.PREFERRED_SIZE)
+                                        .addComponent(checkboxMap[TXT_GIT_PULL], GroupLayout.PREFERRED_SIZE, 72, GroupLayout.PREFERRED_SIZE)
+                                        .addComponent(checkboxMap[TXT_ORDERED_BUILD]))
                                 .addContainerGap(104, Short.MAX_VALUE.toInt()))
         )
         glStatusPanel.setVerticalGroup(
                 glStatusPanel.createParallelGroup(Alignment.LEADING)
                         .addGroup(glStatusPanel.createSequentialGroup()
-                                .addComponent(chckbxGitPull)
+                                .addComponent(checkboxMap[TXT_GIT_PULL])
                                 .addPreferredGap(ComponentPlacement.RELATED)
-                                .addComponent(chckbxStopOnError)
+                                .addComponent(checkboxMap[TXT_STOP_ON_ERROR])
                                 .addPreferredGap(ComponentPlacement.RELATED, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE.toInt())
-                                .addComponent(chckbxOrderedBuild)
+                                .addComponent(checkboxMap[TXT_ORDERED_BUILD])
                                 .addContainerGap())
         )
         optionsPanel.layout = glStatusPanel
@@ -272,7 +254,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         btnRefresh.isContentAreaFilled = false
         btnRefresh.addActionListener {
             lbStatus.text = "Refreshing pom list..."
-            refreshPomFileList()
+            initTable()
             tableModel.fireTableDataChanged()
             lbStatus.text = "Pom list refreshed. "
         }
@@ -297,16 +279,16 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         btnBuild.addActionListener {
             println(" ==================== Build Build Build ==================== ")
             val selectedPomFileList = selectedPomFileList(selectedPomNamesListModel, pomFileList)
-            buildExecutor.executeBuild(selectedPomFileList, pomTargetList, tableModel)
             btnCancel.isEnabled = true
             btnBuild.isEnabled = false
+            buildExecutor.executeBuild(selectedPomFileList, pomTargetList, tableModel)
         }
 
         btnCancel.addActionListener {
             println(" ==================== CANCEL ==================== ")
-            buildExecutor.cancelBuild()
             btnCancel.isEnabled = false
             btnBuild.isEnabled = true
+            buildExecutor.cancelBuild()
         }
     }
 
@@ -327,7 +309,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
 
     @Subscribe
     fun updateStatusComplete(event: BuildingCompleteEvent) {
-        lbStatus.text = "Building complete. "
+        lbStatus.text = event.statusText
         if (btnCancel.isEnabled) {
             btnCancel.isEnabled = false
         }
@@ -338,6 +320,18 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
 
     override fun afterPropertiesSet() {
         initTable()
+        initCheckboxes()
         globalEventBus.eventBus.register(this)
+    }
+
+    private fun initCheckboxes() {
+        checkboxMap[TXT_CLEAN] = jcheckBoxAndAdd(TXT_CLEAN, TOOLTIP_CLEAN, true)
+        checkboxMap[TXT_INSTALL] = jcheckBoxAndAdd(TXT_INSTALL, TOOLTIP_INSTALL, true)
+        checkboxMap[TXT_COMPILE] = jcheckBoxAndAdd(TXT_COMPILE, TOOLTIP_COMPILE, false)
+        checkboxMap[TXT_TEST] = jcheckBoxAndAdd(TXT_TEST, TOOLTIP_TEST, false)
+        checkboxMap[TXT_GIT_PULL] = jcheckBox(TXT_GIT_PULL, TOOLTIP_GIT_PULL)
+        checkboxMap[TXT_STOP_ON_ERROR] = jcheckBox(TXT_STOP_ON_ERROR, TOOLTIP_STOP_ON_ERROR)
+        checkboxMap[TXT_ORDERED_BUILD] = jcheckBox(TXT_ORDERED_BUILD, TOOLTIP_ORDERED_BUILD)
+
     }
 }
