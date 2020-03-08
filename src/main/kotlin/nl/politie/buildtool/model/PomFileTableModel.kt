@@ -1,10 +1,12 @@
 package nl.politie.buildtool.model
 
 import nl.politie.buildtool.utils.FileUtils.createIcon
+import java.awt.Color
 import java.time.Duration
 import java.time.format.DateTimeFormatter
 import javax.swing.DefaultListModel
 import javax.swing.ImageIcon
+import javax.swing.UIManager
 import javax.swing.table.AbstractTableModel
 
 
@@ -94,6 +96,25 @@ class PomFileTableModel(var pomFileList: List<PomFile>, private val selectedPomL
         val index = pomFileList.indexOf(pomFile)
         fireTableRowsUpdated(index, index)
     }
+
+    fun getRowColor(row: Int): Color =
+            when (pomFileList[row].status) {
+                null -> {
+                    UIManager.getColor("Label.background")
+                }
+                BuildStatus.SUCCESS -> {
+                    Color.GREEN
+                }
+                BuildStatus.FAIL -> {
+                    Color.RED
+                }
+                BuildStatus.BUILDING -> {
+                    Color.ORANGE
+                }
+                else -> {
+                    UIManager.getColor("Label.background")
+                }
+            }
 
 
 }
