@@ -1,5 +1,6 @@
 package nl.politie.buildtool.model
 
+import org.apache.maven.shared.utils.cli.CommandLineException
 import java.io.File
 import java.time.Duration
 import java.time.LocalDateTime
@@ -12,6 +13,7 @@ class PomFile(val name: String,
               var finished: LocalDateTime? = null,
               var durationOfLastBuild: Duration? = null,
               var status: BuildStatus? = null) {
+    var executionException: CommandLineException? = null
     fun reset() {
         start = null
         finished = null

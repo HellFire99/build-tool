@@ -1,6 +1,5 @@
 package nl.politie.buildtool.model
 
-import nl.politie.buildtool.utils.*
 import nl.politie.buildtool.utils.FileUtils.createIcon
 import java.time.Duration
 import java.time.format.DateTimeFormatter
@@ -9,7 +8,7 @@ import javax.swing.ImageIcon
 import javax.swing.table.AbstractTableModel
 
 
-class PomFileTableModel(private val pomFileList: List<PomFile>, private val selectedPomList: DefaultListModel<String>) : AbstractTableModel() {
+class PomFileTableModel(var pomFileList: List<PomFile>, private val selectedPomList: DefaultListModel<String>) : AbstractTableModel() {
     private val columnNames = arrayOf(
             Column.CHECKED,
             Column.NAME,
@@ -60,7 +59,11 @@ class PomFileTableModel(private val pomFileList: List<PomFile>, private val sele
         }
         val min = durationOfLastBuild.toMinutes().toString().padStart(2, '0')
         val sec = durationOfLastBuild.toSeconds().toString().padStart(2, '0')
-        val ms = durationOfLastBuild.toMillis().toString().padStart(2, '0')
+        var ms = durationOfLastBuild.toMillis().toString().padStart(2, '0')
+        if (ms.length > 2) {
+            ms = ms.substring(0, 2)
+        }
+
         return "${min}:${sec}:${ms}"
 
     }

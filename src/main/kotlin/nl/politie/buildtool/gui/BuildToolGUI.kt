@@ -2,12 +2,14 @@ package nl.politie.buildtool.gui
 
 import com.google.common.eventbus.Subscribe
 import nl.politie.buildtool.maven.BuildExecutor
-import nl.politie.buildtool.model.BuildingCompleteEvent
-import nl.politie.buildtool.model.Column
-import nl.politie.buildtool.model.PomFile
-import nl.politie.buildtool.model.PomFileTableModel
-import nl.politie.buildtool.utils.*
+import nl.politie.buildtool.model.*
+import nl.politie.buildtool.model.Globals.checkboxMap
+import nl.politie.buildtool.model.Globals.mavenTargetList
+import nl.politie.buildtool.model.Globals.pomFileList
+import nl.politie.buildtool.model.Globals.selectedPomNamesListModel
+import nl.politie.buildtool.utils.DirectoryCrawler
 import nl.politie.buildtool.utils.FileUtils.createIcon
+import nl.politie.buildtool.utils.GlobalEventBus
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.stereotype.Component
@@ -31,14 +33,10 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
 
     private lateinit var frmBuildtoolui: JFrame
     private lateinit var tableModel: PomFileTableModel
-    private var checkboxMap = mutableMapOf<String, JCheckBox>()
     private var table: JTable? = null
     private val btnBuild = JButton(TXT_BUILD)
     private val btnCancel = JButton(TXT_CANCEL)
     private var lbStatus = JLabel(LBL_POMS)
-    private var pomFileList = listOf<PomFile>()
-    private val pomTargetList = mutableListOf<JCheckBox>()
-    private val selectedPomNamesListModel = DefaultListModel<String>()
 
     private fun initTable() {
         refreshPomFileList()
@@ -57,7 +55,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
 
     private fun jcheckBoxAndAdd(text: String, tooltip: String, checked: Boolean = false): JCheckBox {
         val checkbox = jcheckBox(text, tooltip, checked)
-        pomTargetList.add(checkbox)
+        mavenTargetList.add(checkbox)
         return checkbox
     }
 
@@ -66,7 +64,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         checkbox.name = text
         checkbox.isSelected = checked
         checkbox.toolTipText = tooltip
-        pomTargetList.add(checkbox)
+        mavenTargetList.add(checkbox)
         return checkbox
     }
 
@@ -94,8 +92,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
 
         refreshPomFileList()
         selectedPomNamesListModel.clear()
-        tableModel = PomFileTableModel(pomFileList, selectedPomNamesListModel)
-        table!!.model = tableModel
+        (table?.model as PomFileTableModel).pomFileList = pomFileList
         tableModel.fireTableDataChanged()
 
         lbStatus.text = "Pom list refreshed. "
@@ -121,7 +118,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
             pomFileList.forEach { it.reset() }
             btnCancel.isEnabled = true
             btnBuild.isEnabled = false
-            buildExecutor.executeBuild(selectedPomFileList(selectedPomNamesListModel, pomFileList), pomTargetList, tableModel)
+            buildExecutor.executeBuild(selectedPomFileList(selectedPomNamesListModel, pomFileList), mavenTargetList, tableModel)
         }
 
         btnCancel.addActionListener {

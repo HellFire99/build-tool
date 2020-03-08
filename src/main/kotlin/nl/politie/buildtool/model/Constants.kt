@@ -1,4 +1,4 @@
-package nl.politie.buildtool.utils
+package nl.politie.buildtool.model
 
 const val TITLE = "Rob's BuildTool"
 

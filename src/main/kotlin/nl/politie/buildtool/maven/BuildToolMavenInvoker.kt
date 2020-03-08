@@ -1,9 +1,6 @@
 package nl.politie.buildtool.maven
 
-import nl.politie.buildtool.model.BuildStatus
-import nl.politie.buildtool.model.BuildingCompleteEvent
-import nl.politie.buildtool.model.PomFile
-import nl.politie.buildtool.model.PomFileTableModel
+import nl.politie.buildtool.model.*
 import nl.politie.buildtool.utils.GlobalEventBus
 import org.apache.maven.shared.invoker.DefaultInvocationRequest
 import org.apache.maven.shared.invoker.DefaultInvoker
@@ -18,13 +15,25 @@ import java.util.concurrent.Future
 
 @Component
 class BuildToolMavenInvoker(val globalEventBus: GlobalEventBus) {
-
     private val logger = LoggerFactory.getLogger(BuildToolMavenInvoker::class.java)
-    private val mavenHome = System.getenv("MAVEN_HOME")
+    private var mavenHome = initMavenHome()
     private var cancelled = false
     private var currentLatch: CountDownLatch = CountDownLatch(1)
     private var executor = Executors.newSingleThreadExecutor()
     private var future: Future<*>? = null
+
+    fun initMavenHome(): String {
+        var mHome = System.getenv("M2_HOME")
+
+        if (mHome == null) {
+            mHome = System.getenv("MAVEN_HOME")
+        }
+        logger.info("Maven home found: $mavenHome")
+        if (mHome == null) {
+            throw NullPointerException("No maven home found. Define a M2_HOME or MAVEN_HOME environment variable first. ")
+        }
+        return mHome
+    }
 
     fun invoke(pomFiles: List<PomFile>, targets: List<String>, tableModel: PomFileTableModel) {
         cancelled = false
@@ -35,26 +44,33 @@ class BuildToolMavenInvoker(val globalEventBus: GlobalEventBus) {
 
         // Start one by one
         pomFiles.forEach {
-            invokePom(it, targets, invoker, tableModel)
+            var endStatus = invokePom(it, targets, invoker, tableModel)
+            if (endStatus != null &&
+                    endStatus == BuildStatus.FAIL &&
+                    Globals.isStopOnError()) {
+                globalEventBus.eventBus.post(BuildingCompleteEvent("Building stopped because previous build failed. "))
+            }
         }
 
         globalEventBus.eventBus.post(BuildingCompleteEvent("Building complete. "))
     }
 
-    private fun invokePom(it: PomFile, targets: List<String>, invoker: DefaultInvoker, tableModel: PomFileTableModel) {
+    private fun invokePom(it: PomFile, targets: List<String>, invoker: DefaultInvoker, tableModel: PomFileTableModel): BuildStatus? {
+        var endStatus: BuildStatus? = null
         if (!cancelled) {
             postMessage("Execute ${it.name}, target=$targets")
             currentLatch = CountDownLatch(1)
             future = executor.submit {
-                invoke(it, targets, invoker, tableModel)
+                endStatus = invoke(it, targets, invoker, tableModel)
                 currentLatch.countDown()
             }
 
             currentLatch.await()
         }
+        return endStatus
     }
 
-    private fun invoke(pomFile: PomFile, targets: List<String>, invoker: DefaultInvoker, tableModel: PomFileTableModel) {
+    private fun invoke(pomFile: PomFile, targets: List<String>, invoker: DefaultInvoker, tableModel: PomFileTableModel): BuildStatus? {
         // set to building
         pomFile.start = LocalDateTime.now()
         pomFile.status = BuildStatus.BUILDING
@@ -72,11 +88,13 @@ class BuildToolMavenInvoker(val globalEventBus: GlobalEventBus) {
             (BuildStatus.SUCCESS) else {
             BuildStatus.FAIL
         }
+        pomFile.executionException = result.executionException
         pomFile.finished = LocalDateTime.now()
         pomFile.durationOfLastBuild = Duration.between(pomFile.start, pomFile.finished)
         postMessage("${pomFile.name} status ${pomFile.status}. Duration was ${pomFile.durationOfLastBuild}")
 
         tableModel.fireTableDataChanged()
+        return pomFile.status
     }
 
     fun cancelBuild() {
