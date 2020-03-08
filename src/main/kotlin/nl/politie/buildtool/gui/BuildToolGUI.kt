@@ -87,12 +87,21 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         btnRefresh.isFocusPainted = false
         btnRefresh.isContentAreaFilled = false
         btnRefresh.addActionListener {
-            lbStatus.text = "Refreshing pom list..."
-            initTable()
-            tableModel.fireTableDataChanged()
-            lbStatus.text = "Pom list refreshed. "
+            refreshTable()
         }
         return btnRefresh
+    }
+
+    private fun refreshTable() {
+        lbStatus.text = "Refreshing pom list..."
+
+        refreshPomFileList()
+        selectedPomNamesListModel.clear()
+        tableModel = PomFileTableModel(pomFileList, selectedPomNamesListModel)
+        table!!.model = tableModel
+        tableModel.fireTableDataChanged()
+
+        lbStatus.text = "Pom list refreshed. "
     }
 
     private fun refreshPomFileList() {
@@ -181,6 +190,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         frmBuildtoolui.title = TITLE
         frmBuildtoolui.setBounds(100, 100, 935, 631)
         frmBuildtoolui.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
+        frmBuildtoolui.iconImage = createIcon(ICON_BURGER).image
 
         val buttonPanel = JPanel()
         val flButtonPanel = buttonPanel.layout as FlowLayout

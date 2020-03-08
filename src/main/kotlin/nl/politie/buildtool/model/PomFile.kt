@@ -18,4 +18,8 @@ class PomFile(val name: String,
         durationOfLastBuild = null
         status = null
     }
+
+    override fun toString(): String {
+        return "PomFile(name='$name', version='$version', file=$file)"
+    }
 }

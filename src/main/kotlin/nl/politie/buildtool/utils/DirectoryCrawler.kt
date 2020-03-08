@@ -22,16 +22,20 @@ class DirectoryCrawler {
 
     fun getPomFileList(startDir: String): List<PomFile> {
         logger.info("Searching pom files in $startDir")
-        return File(startDir).walkTopDown()
+        val pomFilesFound = File(startDir).walkTopDown()
                 .maxDepth(3)
                 .filter { it.name == "pom.xml" }
                 .map {
                     val pomXmlDoc = readXml(it)
+
                     PomFile(extractValue(pomXmlDoc, XPATH_ARTIFACT_ID),
                             extractValue(pomXmlDoc, XPATH_VERSION),
                             it)
                 }.toList()
                 .sortedBy { it.name }
+        pomFilesFound.forEach { logger.info(it.toString()) }
+        logger.info("${pomFilesFound.size} Pom files found. ")
+        return pomFilesFound
     }
 
     private fun extractValue(pomXmlDoc: Document, xpathString: String): String {
