@@ -2,10 +2,12 @@ package nl.politie.buildtool.gui
 
 import com.google.common.eventbus.Subscribe
 import nl.politie.buildtool.maven.BuildExecutor
-import nl.politie.buildtool.model.*
-import nl.politie.buildtool.utils.DirectoryCrawler
-import nl.politie.buildtool.utils.GlobalEventBus
-import nl.politie.buildtool.utils.createIcon
+import nl.politie.buildtool.model.BuildingCompleteEvent
+import nl.politie.buildtool.model.Column
+import nl.politie.buildtool.model.PomFile
+import nl.politie.buildtool.model.PomFileTableModel
+import nl.politie.buildtool.utils.*
+import nl.politie.buildtool.utils.FileUtils.createIcon
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Value
@@ -74,6 +76,98 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     fun setVisible(visible: Boolean) {
         frmBuildtoolui.isVisible = true
     }
+
+
+    private fun refreshButton(): JButton {
+        val btnRefresh = JButton("")
+        btnRefresh.icon = createIcon(ICON_REFRESH)
+        btnRefresh.iconTextGap = 0
+        btnRefresh.margin = Insets(0, 0, 0, 0)
+        btnRefresh.isBorderPainted = true
+        btnRefresh.isFocusPainted = false
+        btnRefresh.isContentAreaFilled = false
+        btnRefresh.addActionListener {
+            lbStatus.text = "Refreshing pom list..."
+            initTable()
+            tableModel.fireTableDataChanged()
+            lbStatus.text = "Pom list refreshed. "
+        }
+        return btnRefresh
+    }
+
+    private fun refreshPomFileList() {
+        pomFileList = directoryCrawler.getPomFileList(root)
+    }
+
+    private fun buildButtons(buttonPanel: JPanel) {
+        // Build button
+        btnBuild.font = Font("Arial", Font.PLAIN, 14)
+        btnCancel.isEnabled = false
+        btnCancel.font = Font("Arial", Font.PLAIN, 14)
+
+        buttonPanel.add(btnBuild)
+        val horizontalStrut = Box.createHorizontalStrut(10)
+        buttonPanel.add(horizontalStrut)
+        buttonPanel.add(btnCancel)
+
+        btnBuild.addActionListener {
+            println(" ==================== Build Build Build ==================== ")
+            pomFileList.forEach { it.reset() }
+            btnCancel.isEnabled = true
+            btnBuild.isEnabled = false
+            buildExecutor.executeBuild(selectedPomFileList(selectedPomNamesListModel, pomFileList), pomTargetList, tableModel)
+        }
+
+        btnCancel.addActionListener {
+            println(" ==================== CANCEL ==================== ")
+            btnCancel.isEnabled = false
+            btnBuild.isEnabled = true
+            buildExecutor.cancelBuild()
+        }
+    }
+
+    private fun selectedPomFileList(selectedPomNamesListModel: DefaultListModel<String>, pomFileList: List<PomFile>): List<PomFile> {
+        val returnList = mutableListOf<PomFile>()
+        if (!selectedPomNamesListModel.isEmpty) {
+            for (i in 0 until selectedPomNamesListModel.size()) {
+                returnList.add(pomFileList.first { it.name == selectedPomNamesListModel.elementAt(i) })
+            }
+        }
+        return returnList
+    }
+
+    @Subscribe
+    fun updateStatusBar(event: String) {
+        lbStatus.text = event
+    }
+
+    @Subscribe
+    fun updateStatusComplete(event: BuildingCompleteEvent) {
+        lbStatus.text = event.statusText
+        if (btnCancel.isEnabled) {
+            btnCancel.isEnabled = false
+        }
+        if (!btnBuild.isEnabled) {
+            btnBuild.isEnabled = true
+        }
+    }
+
+    override fun afterPropertiesSet() {
+        initTable()
+        initCheckboxes()
+        globalEventBus.eventBus.register(this)
+    }
+
+    private fun initCheckboxes() {
+        checkboxMap[TXT_CLEAN] = jcheckBoxAndAdd(TXT_CLEAN, TOOLTIP_CLEAN, true)
+        checkboxMap[TXT_INSTALL] = jcheckBoxAndAdd(TXT_INSTALL, TOOLTIP_INSTALL, true)
+        checkboxMap[TXT_COMPILE] = jcheckBoxAndAdd(TXT_COMPILE, TOOLTIP_COMPILE, false)
+        checkboxMap[TXT_TEST] = jcheckBoxAndAdd(TXT_TEST, TOOLTIP_TEST, false)
+        checkboxMap[TXT_GIT_PULL] = jcheckBox(TXT_GIT_PULL, TOOLTIP_GIT_PULL)
+        checkboxMap[TXT_STOP_ON_ERROR] = jcheckBox(TXT_STOP_ON_ERROR, TOOLTIP_STOP_ON_ERROR)
+        checkboxMap[TXT_ORDERED_BUILD] = jcheckBox(TXT_ORDERED_BUILD, TOOLTIP_ORDERED_BUILD)
+    }
+
 
     /**
      * Initialize the contents of the frame.
@@ -242,96 +336,5 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         buildButtons(buttonPanel)
 
         frmBuildtoolui.contentPane.layout = groupLayout
-    }
-
-    private fun refreshButton(): JButton {
-        val btnRefresh = JButton("")
-        btnRefresh.icon = createIcon("images/icon_refresh.png")
-        btnRefresh.iconTextGap = 0
-        btnRefresh.margin = Insets(0, 0, 0, 0)
-        btnRefresh.isBorderPainted = true
-        btnRefresh.isFocusPainted = false
-        btnRefresh.isContentAreaFilled = false
-        btnRefresh.addActionListener {
-            lbStatus.text = "Refreshing pom list..."
-            initTable()
-            tableModel.fireTableDataChanged()
-            lbStatus.text = "Pom list refreshed. "
-        }
-        return btnRefresh
-    }
-
-    private fun refreshPomFileList() {
-        pomFileList = directoryCrawler.getPomFileList(root)
-    }
-
-    private fun buildButtons(buttonPanel: JPanel) {
-        // Build button
-        btnBuild.font = Font("Arial", Font.PLAIN, 14)
-        btnCancel.isEnabled = false
-        btnCancel.font = Font("Arial", Font.PLAIN, 14)
-
-        buttonPanel.add(btnBuild)
-        val horizontalStrut = Box.createHorizontalStrut(10)
-        buttonPanel.add(horizontalStrut)
-        buttonPanel.add(btnCancel)
-
-        btnBuild.addActionListener {
-            println(" ==================== Build Build Build ==================== ")
-            val selectedPomFileList = selectedPomFileList(selectedPomNamesListModel, pomFileList)
-            btnCancel.isEnabled = true
-            btnBuild.isEnabled = false
-            buildExecutor.executeBuild(selectedPomFileList, pomTargetList, tableModel)
-        }
-
-        btnCancel.addActionListener {
-            println(" ==================== CANCEL ==================== ")
-            btnCancel.isEnabled = false
-            btnBuild.isEnabled = true
-            buildExecutor.cancelBuild()
-        }
-    }
-
-    private fun selectedPomFileList(selectedPomNamesListModel: DefaultListModel<String>, pomFileList: List<PomFile>): List<PomFile> {
-        val returnList = mutableListOf<PomFile>()
-        if (!selectedPomNamesListModel.isEmpty) {
-            for (i in 0 until selectedPomNamesListModel.size()) {
-                returnList.add(pomFileList.first { it.name == selectedPomNamesListModel.elementAt(i) })
-            }
-        }
-        return returnList
-    }
-
-    @Subscribe
-    fun updateStatusBar(event: String) {
-        lbStatus.text = event
-    }
-
-    @Subscribe
-    fun updateStatusComplete(event: BuildingCompleteEvent) {
-        lbStatus.text = event.statusText
-        if (btnCancel.isEnabled) {
-            btnCancel.isEnabled = false
-        }
-        if (!btnBuild.isEnabled) {
-            btnBuild.isEnabled = true
-        }
-    }
-
-    override fun afterPropertiesSet() {
-        initTable()
-        initCheckboxes()
-        globalEventBus.eventBus.register(this)
-    }
-
-    private fun initCheckboxes() {
-        checkboxMap[TXT_CLEAN] = jcheckBoxAndAdd(TXT_CLEAN, TOOLTIP_CLEAN, true)
-        checkboxMap[TXT_INSTALL] = jcheckBoxAndAdd(TXT_INSTALL, TOOLTIP_INSTALL, true)
-        checkboxMap[TXT_COMPILE] = jcheckBoxAndAdd(TXT_COMPILE, TOOLTIP_COMPILE, false)
-        checkboxMap[TXT_TEST] = jcheckBoxAndAdd(TXT_TEST, TOOLTIP_TEST, false)
-        checkboxMap[TXT_GIT_PULL] = jcheckBox(TXT_GIT_PULL, TOOLTIP_GIT_PULL)
-        checkboxMap[TXT_STOP_ON_ERROR] = jcheckBox(TXT_STOP_ON_ERROR, TOOLTIP_STOP_ON_ERROR)
-        checkboxMap[TXT_ORDERED_BUILD] = jcheckBox(TXT_ORDERED_BUILD, TOOLTIP_ORDERED_BUILD)
-
     }
 }

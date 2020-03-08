@@ -1,6 +1,7 @@
 package nl.politie.buildtool.model
 
-import nl.politie.buildtool.utils.createIcon
+import nl.politie.buildtool.utils.*
+import nl.politie.buildtool.utils.FileUtils.createIcon
 import java.time.Duration
 import java.time.format.DateTimeFormatter
 import javax.swing.DefaultListModel
@@ -18,17 +19,13 @@ class PomFileTableModel(private val pomFileList: List<PomFile>, private val sele
             Column.DURATION,
             Column.STATUS)
 
-    var statusMap: Map<BuildStatus, ImageIcon>
-
-    init {
-        statusMap = mapOf(
-                BuildStatus.QUEUED to createIcon("images/queued.png"),
-                BuildStatus.BUILDING to createIcon("images/building.gif"),
-                BuildStatus.SUCCESS to createIcon("images/check.gif"),
-                BuildStatus.FAIL to createIcon("images/error.png"),
-                BuildStatus.NONE to createIcon("images/none.png")
-        )
-    }
+    var statusMap: Map<BuildStatus, ImageIcon> = mapOf(
+            BuildStatus.QUEUED to createIcon(ICON_QUEUED),
+            BuildStatus.BUILDING to createIcon(ICON_BUILDING),
+            BuildStatus.SUCCESS to createIcon(ICON_CHECK),
+            BuildStatus.FAIL to createIcon(ICON_ERROR),
+            BuildStatus.NONE to createIcon(ICON_NONE)
+    )
 
     override fun getRowCount() = pomFileList.size
 

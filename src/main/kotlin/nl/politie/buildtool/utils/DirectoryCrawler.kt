@@ -5,20 +5,15 @@ import nl.politie.buildtool.maven.BuildToolMavenInvoker
 import nl.politie.buildtool.model.PomFile
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import org.springframework.util.ResourceUtils
 import org.w3c.dom.Document
 import org.w3c.dom.NodeList
 import java.io.File
-import javax.swing.ImageIcon
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.xpath.XPathConstants
 import javax.xml.xpath.XPathFactory
 
 const val XPATH_ARTIFACT_ID = "/project/artifactId"
 const val XPATH_VERSION = "/project/version"
-
-fun createIcon(path: String) =
-        ImageIcon(ResourceUtils.getFile("classpath:${path}").readBytes())
 
 @Component
 class DirectoryCrawler {
