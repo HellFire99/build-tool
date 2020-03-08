@@ -4,6 +4,7 @@ package nl.politie.buildtool.utils
 import nl.politie.buildtool.maven.BuildToolMavenInvoker
 import nl.politie.buildtool.model.PomFile
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import org.w3c.dom.Document
 import org.w3c.dom.NodeList
@@ -17,12 +18,15 @@ const val XPATH_VERSION = "/project/version"
 
 @Component
 class DirectoryCrawler {
+    @Value("\${root:.}")
+    lateinit var root: String
+
     private val logger = LoggerFactory.getLogger(BuildToolMavenInvoker::class.java)
     private val documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder()
 
-    fun getPomFileList(startDir: String): List<PomFile> {
-        logger.info("Searching pom files in $startDir")
-        val pomFilesFound = File(startDir).walkTopDown()
+    fun getPomFileList(): List<PomFile> {
+        logger.info("Searching pom files in $root")
+        val pomFilesFound = File(root).walkTopDown()
                 .maxDepth(3)
                 .filter { it.name == "pom.xml" }
                 .map {

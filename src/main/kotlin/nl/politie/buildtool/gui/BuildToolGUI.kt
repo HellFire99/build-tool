@@ -10,7 +10,6 @@ import nl.politie.buildtool.utils.*
 import nl.politie.buildtool.utils.FileUtils.createIcon
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.awt.Color
 import java.awt.FlowLayout
@@ -30,15 +29,13 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                    val globalEventBus: GlobalEventBus) : InitializingBean {
     private val logger = LoggerFactory.getLogger(BuildToolGUI::class.java)
 
-    @Value("\${root:.}")
-    private lateinit var root: String
     private lateinit var frmBuildtoolui: JFrame
     private lateinit var tableModel: PomFileTableModel
     private var checkboxMap = mutableMapOf<String, JCheckBox>()
     private var table: JTable? = null
-    private val btnBuild = JButton("Build")
-    private val btnCancel = JButton("Cancel")
-    private var lbStatus = JLabel("Pom's")
+    private val btnBuild = JButton(TXT_BUILD)
+    private val btnCancel = JButton(TXT_CANCEL)
+    private var lbStatus = JLabel(LBL_POMS)
     private var pomFileList = listOf<PomFile>()
     private val pomTargetList = mutableListOf<JCheckBox>()
     private val selectedPomNamesListModel = DefaultListModel<String>()
@@ -105,7 +102,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     }
 
     private fun refreshPomFileList() {
-        pomFileList = directoryCrawler.getPomFileList(root)
+        pomFileList = directoryCrawler.getPomFileList()
     }
 
     private fun buildButtons(buttonPanel: JPanel) {

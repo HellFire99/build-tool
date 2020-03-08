@@ -6,6 +6,7 @@ const val TITLE = "Rob's BuildTool"
 const val LBL_SELECTED = "Selected"
 const val LBL_POM_FILES = "Pom files"
 const val LBL_MAVEN_PROJECTS = "Maven projects"
+const val LBL_POMS = "Pom's"
 
 // Tooltips
 const val TOOLTIP_CLEAN = "Maven Clean"
@@ -24,6 +25,8 @@ const val TXT_TEST = "test"
 const val TXT_GIT_PULL = "Git Pull"
 const val TXT_STOP_ON_ERROR = "Stop on error"
 const val TXT_ORDERED_BUILD = "Ordered build"
+const val TXT_BUILD = "Build"
+const val TXT_CANCEL = "Cancel"
 
 // Images
 const val ICON_REFRESH = "/images/icon_refresh.png"

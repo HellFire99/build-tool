@@ -9,7 +9,8 @@ class DirectoryCrawlerTest {
     @Test
     fun testGetPomFileList() {
         directoryCrawler = DirectoryCrawler()
-        val fileList = directoryCrawler.getPomFileList("D:/Java/projects")
+        directoryCrawler.root = "."
+        val fileList = directoryCrawler.getPomFileList()
         fileList.forEach { println("Project: ${it.name} - ${it.file.absoluteFile}") }
     }
 }
