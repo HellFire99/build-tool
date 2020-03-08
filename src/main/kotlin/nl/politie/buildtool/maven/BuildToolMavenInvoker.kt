@@ -41,6 +41,7 @@ class BuildToolMavenInvoker(val globalEventBus: GlobalEventBus) {
         invoker.mavenHome = File(mavenHome)
         // set all to queued
         pomFiles.forEach { it.status = BuildStatus.QUEUED }
+        tableModel.fireTableDataChanged()
 
         // Start one by one
         pomFiles.forEach {
@@ -75,7 +76,7 @@ class BuildToolMavenInvoker(val globalEventBus: GlobalEventBus) {
         pomFile.start = LocalDateTime.now()
         pomFile.status = BuildStatus.BUILDING
         postMessage("${pomFile.name} status ${pomFile.status}")
-        tableModel.fireTableDataChanged()
+        tableModel.fireRowUpdated(pomFile)
 
         // Invoke maven
         val request = DefaultInvocationRequest()
@@ -93,7 +94,7 @@ class BuildToolMavenInvoker(val globalEventBus: GlobalEventBus) {
         pomFile.durationOfLastBuild = Duration.between(pomFile.start, pomFile.finished)
         postMessage("${pomFile.name} status ${pomFile.status}. Duration was ${pomFile.durationOfLastBuild}")
 
-        tableModel.fireTableDataChanged()
+        tableModel.fireRowUpdated(pomFile)
         return pomFile.status
     }
 

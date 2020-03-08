@@ -50,6 +50,9 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         myTable.columnModel.getColumn(5).preferredWidth = Column.DURATION.width
         myTable.columnModel.getColumn(6).preferredWidth = Column.STATUS.width
         myTable.model = tableModel
+        // TODO cellRenderer toevoegen opm achtergrond obv status te tekenen
+//        val myRenderer = MyTableCellRenderer()
+//        myTable.setDefaultRenderer(myRenderer)
         table = myTable
     }
 

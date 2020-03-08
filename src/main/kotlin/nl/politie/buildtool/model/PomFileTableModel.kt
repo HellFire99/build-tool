@@ -90,4 +90,10 @@ class PomFileTableModel(var pomFileList: List<PomFile>, private val selectedPomL
 
     override fun getColumnClass(col: Int) = getValueAt(0, col).javaClass
 
+    fun fireRowUpdated(pomFile: PomFile) {
+        val index = pomFileList.indexOf(pomFile)
+        fireTableRowsUpdated(index, index)
+    }
+
+
 }
