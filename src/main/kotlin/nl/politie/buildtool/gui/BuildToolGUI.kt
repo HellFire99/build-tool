@@ -37,6 +37,8 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
     private val btnBuild = JButton(TXT_BUILD)
     private val btnCancel = JButton(TXT_CANCEL)
     private var lbStatus = JLabel(LBL_POMS)
+    private val consoleScrollPane = JScrollPane()
+    private val consoleArea = JTextArea()
 
     private fun initTable() {
         refreshPomFileList()
@@ -54,7 +56,6 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         val myRenderer = MyTableCellRenderer()
         myTable.setDefaultRenderer(Object::class.java, myRenderer)
         myTable.setDefaultRenderer(Boolean::class.java, myRenderer)
-//        myTable.setDefaultRenderer(ImageIcon::class.java, myRenderer)
         table = myTable
     }
 
@@ -120,6 +121,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
 
         btnBuild.addActionListener {
             println(" ==================== Build Build Build ==================== ")
+
             pomFileList.forEach { it.reset() }
             btnCancel.isEnabled = true
             btnBuild.isEnabled = false
@@ -130,8 +132,23 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
             println(" ==================== CANCEL ==================== ")
             btnCancel.isEnabled = false
             btnBuild.isEnabled = true
+
             buildExecutor.cancelBuild()
         }
+    }
+
+    private fun hideConsole() {
+        consoleScrollPane.isVisible = false
+
+        // resize window to original height - console height
+        val size = frmBuildtoolui.size
+        size.height = size.height - consoleScrollPane.height
+        frmBuildtoolui.pack()
+    }
+
+    private fun showConsole() {
+        consoleScrollPane.isVisible = true
+        frmBuildtoolui.pack()
     }
 
     private fun selectedPomFileList(selectedPomNamesListModel: DefaultListModel<String>, pomFileList: List<PomFile>): List<PomFile> {
@@ -160,10 +177,23 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         }
     }
 
+    @Subscribe
+    fun updateTextAres(event: MavenLogEvent) {
+        consoleArea.append(event.text)
+        consoleArea.caretPosition = consoleArea.document.length
+    }
+
     override fun afterPropertiesSet() {
         initTable()
         initCheckboxes()
+        initConsoleArea()
         globalEventBus.eventBus.register(this)
+    }
+
+    private fun initConsoleArea() {
+        consoleArea.text = "Output window > \n"
+        consoleArea.foreground = Color.BLACK
+        consoleArea.background = UIManager.getColor("Button.background")
     }
 
     private fun initCheckboxes() {
@@ -229,7 +259,6 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         val panel = JPanel()
         panel.border = EtchedBorder(EtchedBorder.LOWERED, null, null)
 
-
         val gl_panel = GroupLayout(panel)
         gl_panel.setHorizontalGroup(
                 gl_panel.createParallelGroup(Alignment.LEADING)
@@ -260,12 +289,19 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
         val scrollPoms = JScrollPane()
         scrollPoms.toolTipText = LBL_POM_FILES
         scrollPoms.setViewportView(table)
-
         val btnRefresh = refreshButton()
-
         val lblMavenProjects = JLabel(LBL_MAVEN_PROJECTS)
         lblMavenProjects.font = Font("Arial", Font.PLAIN, 16)
+
         val groupLayout = GroupLayout(frmBuildtoolui!!.contentPane)
+
+        consoleScrollPane.setViewportView(consoleArea)
+
+        val consoleGroup = groupLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(consoleScrollPane, GroupLayout.DEFAULT_SIZE, 899, Short.MAX_VALUE.toInt())
+                .addContainerGap()
+
         groupLayout.setHorizontalGroup(
                 groupLayout.createParallelGroup(Alignment.TRAILING)
                         .addComponent(statusPanel, GroupLayout.DEFAULT_SIZE, 919, Short.MAX_VALUE.toInt())
@@ -274,9 +310,9 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                                 .addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
                                         .addGroup(groupLayout.createSequentialGroup()
                                                 .addComponent(lblMavenProjects, GroupLayout.PREFERRED_SIZE, 116, GroupLayout.PREFERRED_SIZE)
-                                                .addPreferredGap(ComponentPlacement.RELATED, 544, Short.MAX_VALUE.toInt())
+                                                .addPreferredGap(ComponentPlacement.RELATED, 540, Short.MAX_VALUE.toInt())
                                                 .addComponent(btnRefresh))
-                                        .addComponent(scrollPoms, GroupLayout.DEFAULT_SIZE, 680, Short.MAX_VALUE.toInt()))
+                                        .addComponent(scrollPoms, GroupLayout.DEFAULT_SIZE, 500, Short.MAX_VALUE.toInt()))
                                 .addPreferredGap(ComponentPlacement.UNRELATED)
                                 .addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
                                         .addComponent(lblSelected, GroupLayout.PREFERRED_SIZE, 116, GroupLayout.PREFERRED_SIZE)
@@ -290,6 +326,7 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                                 .addContainerGap()
                                 .addComponent(buttonPanel, GroupLayout.DEFAULT_SIZE, 899, Short.MAX_VALUE.toInt())
                                 .addContainerGap())
+                        .addGroup(consoleGroup)
         )
         groupLayout.setVerticalGroup(
                 groupLayout.createParallelGroup(Alignment.LEADING)
@@ -310,7 +347,9 @@ class BuildToolGUI(val directoryCrawler: DirectoryCrawler,
                                                         .addComponent(btnRefresh, GroupLayout.PREFERRED_SIZE, 21, GroupLayout.PREFERRED_SIZE))
                                                 .addPreferredGap(ComponentPlacement.RELATED)
                                                 .addComponent(scrollPoms, GroupLayout.DEFAULT_SIZE, 469, Short.MAX_VALUE.toInt())))
-                                .addPreferredGap(ComponentPlacement.UNRELATED)
+                                .addPreferredGap(ComponentPlacement.RELATED)
+                                .addComponent(consoleScrollPane, GroupLayout.DEFAULT_SIZE, 288, Short.MAX_VALUE.toInt())
+                                .addPreferredGap(ComponentPlacement.RELATED)
                                 .addComponent(buttonPanel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                                 .addGap(17)
                                 .addComponent(statusPanel, GroupLayout.PREFERRED_SIZE, 22, GroupLayout.PREFERRED_SIZE))

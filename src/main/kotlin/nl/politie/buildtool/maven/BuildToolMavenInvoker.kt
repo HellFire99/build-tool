@@ -12,6 +12,7 @@ import java.time.LocalDateTime
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
+import javax.swing.SwingUtilities
 
 @Component
 class BuildToolMavenInvoker(val globalEventBus: GlobalEventBus) {
@@ -39,6 +40,12 @@ class BuildToolMavenInvoker(val globalEventBus: GlobalEventBus) {
         cancelled = false
         val invoker = DefaultInvoker()
         invoker.mavenHome = File(mavenHome)
+        invoker.setOutputHandler {
+            SwingUtilities.invokeLater {
+                globalEventBus.eventBus.post(MavenLogEvent("$it\n"))
+            }
+        }
+
         // set all to queued
         pomFiles.forEach { it.status = BuildStatus.QUEUED }
         tableModel.fireTableDataChanged()
